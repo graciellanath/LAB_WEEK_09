@@ -12,7 +12,6 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -21,6 +20,9 @@ import com.example.lab_week_09.ui.theme.LAB_WEEK_09Theme
 import com.example.lab_week_09.ui.theme.OnBackgroundItemText
 import com.example.lab_week_09.ui.theme.OnBackgroundTitleText
 import com.example.lab_week_09.ui.theme.PrimaryTextButton
+import com.squareup.moshi.Moshi
+import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
+import com.squareup.moshi.Types
 
 data class Student(val name: String)
 
@@ -46,7 +48,7 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun Home(navigateFromHomeToResult: (String) -> Unit) {
+fun Home(navigateFromHomeToResult: (List<Student>) -> Unit) {
     val listData = remember {
         mutableStateListOf(
             Student("Tanu"),
@@ -62,13 +64,14 @@ fun Home(navigateFromHomeToResult: (String) -> Unit) {
         inputField = inputField,
         onInputValueChange = { inputField = it },
         onButtonClick = {
+            // Tidak bisa submit string kosong
             if (inputField.isNotBlank()) {
                 listData.add(Student(inputField))
                 inputField = ""
             }
         },
         navigateFromHomeToResult = {
-            navigateFromHomeToResult(listData.toList().toString())
+            navigateFromHomeToResult(listData.toList())
         }
     )
 }
@@ -88,21 +91,21 @@ fun HomeContent(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         item {
-            OnBackgroundTitleText(text = stringResource(id = R.string.enter_item))
+            OnBackgroundTitleText(text = "Enter a name")
             Spacer(modifier = Modifier.height(8.dp))
             TextField(
                 value = inputField,
                 onValueChange = onInputValueChange,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
                 modifier = Modifier.fillMaxWidth(),
-                label = { Text("Enter a name") }
+                label = { Text("Name") }
             )
             Spacer(modifier = Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                PrimaryTextButton(text = stringResource(id = R.string.button_click)) {
+                PrimaryTextButton(text = "Add") {
                     onButtonClick()
                 }
-                PrimaryTextButton(text = stringResource(id = R.string.button_navigate)) {
+                PrimaryTextButton(text = "Submit") {
                     navigateFromHomeToResult()
                 }
             }
@@ -115,7 +118,19 @@ fun HomeContent(
 }
 
 @Composable
-fun ResultContent(listData: String) {
+fun ResultContent(jsonData: String) {
+    val moshi = remember {
+        Moshi.Builder()
+            .add(KotlinJsonAdapterFactory())
+            .build()
+    }
+    val type = Types.newParameterizedType(List::class.java, Student::class.java)
+    val adapter = moshi.adapter<List<Student>>(type)
+
+    val studentList = remember(jsonData) {
+        adapter.fromJson(jsonData) ?: emptyList()
+    }
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -123,7 +138,11 @@ fun ResultContent(listData: String) {
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         item {
-            Text(text = listData)
+            Text("List of Students:")
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+        items(studentList) { student ->
+            OnBackgroundItemText(text = "Student → Name = ${student.name}")
         }
     }
 }
